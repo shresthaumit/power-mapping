@@ -214,7 +214,15 @@ function renderZones() {
   });
 }
 
-function drawArrows() {
+function clipToEdge(cx, cy, w, h, tx, ty) {
+  const dx = tx - cx, dy = ty - cy;
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+  const halfW = w / 2 + 4, halfH = h / 2 + 4;
+  const scaleX = dx !== 0 ? halfW / Math.abs(dx) : Infinity;
+  const scaleY = dy !== 0 ? halfH / Math.abs(dy) : Infinity;
+  const scale = Math.min(scaleX, scaleY);
+  return { x: cx + dx * scale, y: cy + dy * scale };
+}function drawArrows() {
   const layer = document.getElementById("arrowLayer");
   const board = document.getElementById("board");
   const boardRect = board.getBoundingClientRect();
@@ -226,10 +234,13 @@ function drawArrows() {
     if (!fromEl || !toEl) return;
     const fr = fromEl.getBoundingClientRect();
     const tr = toEl.getBoundingClientRect();
-    const x1 = fr.left + fr.width / 2 - boardRect.left;
-    const y1 = fr.top + fr.height / 2 - boardRect.top;
-    const x2 = tr.left + tr.width / 2 - boardRect.left;
-    const y2 = tr.top + tr.height / 2 - boardRect.top;
+    const c1x = fr.left + fr.width / 2 - boardRect.left;
+    const c1y = fr.top + fr.height / 2 - boardRect.top;
+    const c2x = tr.left + tr.width / 2 - boardRect.left;
+    const c2y = tr.top + tr.height / 2 - boardRect.top;
+    const p1 = clipToEdge(c1x, c1y, fr.width, fr.height, c2x, c2y);
+    const p2 = clipToEdge(c2x, c2y, tr.width, tr.height, c1x, c1y);
+    const x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y;
     const midx = (x1 + x2) / 2;
     const midy = (y1 + y2) / 2;
     const zr1 = zoneRank(state.zones[a.from]);
