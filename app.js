@@ -28,6 +28,10 @@ const ZONE_INFO = [
   { key: "limited", name: "Limited power", desc: "Little control over major decisions, even if the actor plays an important role." }
 ];
 
+const ZONE_RANK = { high: 0, moderate: 1, limited: 2 };
+const ZONE_STROKE = { high: "#2c2a4a", moderate: "#17685c", limited: "#a8672f" };
+const ZONE_FILL = { high: "#e4e3ec", moderate: "#dcece8", limited: "#f2e3d0" };
+
 const params = new URLSearchParams(location.search);
 const groupId = params.get("g") || "1";
 const group = GROUPS[groupId] || GROUPS["1"];
@@ -37,10 +41,7 @@ let state = {
   arrows: [],
   imbalanceFrom: "",
   imbalanceTo: "",
-  imbalanceWhy: "",
-  redesignGains: "",
-  redesignGives: "",
-  redesignChanges: ""
+  imbalanceWhy: ""
 };
 
 const incomingData = params.get("data");
@@ -51,8 +52,8 @@ if (incomingData) {
   } catch (e) { /* ignore malformed data */ }
 }
 
-let selectedForConnect = null;
 let armedForPlacement = null;
+let gNames = [], gPos = {};
 
 function el(tag, attrs, children) {
   const node = document.createElement(tag);
@@ -64,6 +65,8 @@ function el(tag, attrs, children) {
   (children || []).forEach(c => node.appendChild(c));
   return node;
 }
+
+function cssEscape(s) { return s.replace(/["\\]/g, "\\$&"); }
 
 function init() {
   document.getElementById("groupTitle").textContent = group.title;
@@ -93,111 +96,83 @@ function init() {
       if (armedForPlacement) {
         placeActor(armedForPlacement, z.key);
         armedForPlacement = null;
-        renderPool();
       }
     });
   });
 
+  const pool = document.getElementById("pool");
+  pool.addEventListener("dragover", e => e.preventDefault());
+  pool.addEventListener("drop", e => {
+    e.preventDefault();
+    const name = e.dataTransfer.getData("text/plain");
+    if (name) unplaceActor(name);
+  });
+
   renderPool();
   renderZones();
-  drawArrows();
-  buildLabelOptions();
   buildAnalyzeSelects();
 
   document.getElementById("resetBtn").addEventListener("click", resetAll);
-  document.getElementById("undoArrowBtn").addEventListener("click", () => { state.arrows.pop(); drawArrows(); });
+  document.getElementById("generateBtn").addEventListener("click", onGenerateClick);
+  document.getElementById("undoArrowBtn").addEventListener("click", () => { state.arrows.pop(); renderGraph(); buildAnalyzeSelects(); });
+  document.getElementById("adjustBtn").addEventListener("click", () => {
+    document.getElementById("graphSection").style.display = "none";
+    document.querySelector(".block").style.display = "block";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
   document.getElementById("shareBtn").addEventListener("click", generateShareLink);
   document.getElementById("copyLinkBtn").addEventListener("click", copyShareLink);
 
   ["imbalanceFrom", "imbalanceTo"].forEach(id => {
     document.getElementById(id).addEventListener("change", e => { state[id] = e.target.value; });
   });
-  ["imbalanceWhy", "redesignGains", "redesignGives", "redesignChanges"].forEach(id => {
-    const field = document.getElementById(id);
-    field.value = state[id] || "";
-    field.addEventListener("input", e => { state[id] = e.target.value; });
-  });
-  document.getElementById("imbalanceFrom").value = state.imbalanceFrom || "";
-  document.getElementById("imbalanceTo").value = state.imbalanceTo || "";
+  const whyField = document.getElementById("imbalanceWhy");
+  whyField.value = state.imbalanceWhy || "";
+  whyField.addEventListener("input", e => { state.imbalanceWhy = e.target.value; });
 
-  window.addEventListener("resize", drawArrows);
+  attachDrawing();
+
+  const placedCount = Object.keys(state.zones).length;
+  if (placedCount >= 2) {
+    document.querySelector(".wrap .block").style.display = "block";
+    generateGraph();
+    document.getElementById("graphSection").style.display = "block";
+  }
+
+  window.addEventListener("resize", renderGraph);
 }
 
-function makeChip(name, placed) {
+function makeChip(name) {
   const chip = el("div", { class: "chip", draggable: "true", "data-name": name, text: name });
   chip.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", name));
   chip.addEventListener("click", () => {
-    if (placed) onPlacedChipClick(chip, name);
-    else onPoolChipClick(chip, name);
+    document.querySelectorAll("#pool .chip").forEach(c => c.classList.remove("selected"));
+    if (armedForPlacement === name) { armedForPlacement = null; return; }
+    armedForPlacement = name;
+    chip.classList.add("selected");
   });
   return chip;
-}
-
-function onPoolChipClick(chip, name) {
-  document.querySelectorAll("#pool .chip").forEach(c => c.classList.remove("selected"));
-  if (armedForPlacement === name) { armedForPlacement = null; return; }
-  armedForPlacement = name;
-  chip.classList.add("selected");
-}
-
-function onPlacedChipClick(chip, name) {
-  if (!selectedForConnect) {
-    selectedForConnect = name;
-    chip.classList.add("selected");
-    return;
-  }
-  if (selectedForConnect === name) {
-    chip.classList.remove("selected");
-    selectedForConnect = null;
-    return;
-  }
-  openLabelPanel(selectedForConnect, name, chip);
-}
-
-function openLabelPanel(from, to, anchorChip) {
-  document.querySelectorAll(".label-panel").forEach(p => p.remove());
-  const rect = anchorChip.getBoundingClientRect();
-  const panel = el("div", { class: "label-panel" });
-  panel.style.left = Math.min(window.scrollX + rect.left, window.scrollX + document.body.clientWidth - 240) + "px";
-  panel.style.top = (window.scrollY + rect.bottom + 8) + "px";
-  panel.appendChild(el("div", { text: from + " → " + to, style: "font-size:13px;margin-bottom:6px;" }));
-  const select = el("select");
-  group.labels.forEach(l => select.appendChild(el("option", { value: l, text: l })));
-  panel.appendChild(select);
-  const confirmBtn = el("button", { class: "primary", text: "Add arrow" });
-  const cancelBtn = el("button", { text: "Cancel" });
-  const row = el("div", { style: "display:flex;gap:8px;" }, [confirmBtn, cancelBtn]);
-  panel.appendChild(row);
-  document.body.appendChild(panel);
-
-  confirmBtn.addEventListener("click", () => {
-    state.arrows.push({ from, to, label: select.value });
-    panel.remove();
-    clearConnectSelection();
-    drawArrows();
-  });
-  cancelBtn.addEventListener("click", () => {
-    panel.remove();
-    clearConnectSelection();
-  });
-}
-
-function clearConnectSelection() {
-  selectedForConnect = null;
-  document.querySelectorAll(".zone .chip").forEach(c => c.classList.remove("selected"));
 }
 
 function placeActor(name, zoneKey) {
   state.zones[name] = zoneKey;
   renderPool();
   renderZones();
-  drawArrows();
+  buildAnalyzeSelects();
+}
+
+function unplaceActor(name) {
+  delete state.zones[name];
+  state.arrows = state.arrows.filter(a => a.from !== name && a.to !== name);
+  renderPool();
+  renderZones();
+  buildAnalyzeSelects();
 }
 
 function renderPool() {
   const pool = document.getElementById("pool");
   pool.innerHTML = "";
-  group.actors.filter(a => !state.zones[a]).forEach(a => pool.appendChild(makeChip(a, false)));
+  group.actors.filter(a => !state.zones[a]).forEach(a => pool.appendChild(makeChip(a)));
 }
 
 function renderZones() {
@@ -206,97 +181,12 @@ function renderZones() {
     const zoneKey = state.zones[a];
     const drop = document.querySelector('.drop[data-zone="' + zoneKey + '"]');
     if (drop) {
-      const chip = makeChip(a, true);
-      chip.draggable = true;
+      const chip = el("div", { class: "chip", draggable: "true", "data-name": a, text: a });
       chip.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", a));
       drop.appendChild(chip);
     }
   });
 }
-
-function clipToEdge(cx, cy, w, h, tx, ty) {
-  const dx = tx - cx, dy = ty - cy;
-  if (dx === 0 && dy === 0) return { x: cx, y: cy };
-  const halfW = w / 2 + 4, halfH = h / 2 + 4;
-  const scaleX = dx !== 0 ? halfW / Math.abs(dx) : Infinity;
-  const scaleY = dy !== 0 ? halfH / Math.abs(dy) : Infinity;
-  const scale = Math.min(scaleX, scaleY);
-  return { x: cx + dx * scale, y: cy + dy * scale };
-}function drawArrows() {
-  const layer = document.getElementById("arrowLayer");
-  const board = document.getElementById("board");
-  const boardRect = board.getBoundingClientRect();
-  layer.innerHTML = '<defs><marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#55534c"/></marker></defs>';
-  state.arrows = state.arrows.filter(a => state.zones[a.from] && state.zones[a.to]);
-  state.arrows.forEach((a, idx) => {
-    const fromEl = document.querySelector('.zone .chip[data-name="' + cssEscape(a.from) + '"]');
-    const toEl = document.querySelector('.zone .chip[data-name="' + cssEscape(a.to) + '"]');
-    if (!fromEl || !toEl) return;
-    const fr = fromEl.getBoundingClientRect();
-    const tr = toEl.getBoundingClientRect();
-    const c1x = fr.left + fr.width / 2 - boardRect.left;
-    const c1y = fr.top + fr.height / 2 - boardRect.top;
-    const c2x = tr.left + tr.width / 2 - boardRect.left;
-    const c2y = tr.top + tr.height / 2 - boardRect.top;
-    const p1 = clipToEdge(c1x, c1y, fr.width, fr.height, c2x, c2y);
-    const p2 = clipToEdge(c2x, c2y, tr.width, tr.height, c1x, c1y);
-    const x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y;
-    const midx = (x1 + x2) / 2;
-    const midy = (y1 + y2) / 2;
-    const zr1 = zoneRank(state.zones[a.from]);
-    const zr2 = zoneRank(state.zones[a.to]);
-    let color = "#8a877d";
-    if (zr1 < zr2) color = "#2c2a4a";
-    else if (zr1 > zr2) color = "#a8672f";
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", x1); line.setAttribute("y1", y1);
-    line.setAttribute("x2", x2); line.setAttribute("y2", y2);
-    line.setAttribute("stroke", color);
-    line.setAttribute("stroke-width", "1.6");
-    line.setAttribute("marker-end", "url(#ah)");
-    line.style.pointerEvents = "stroke";
-    line.style.cursor = "pointer";
-    line.addEventListener("click", () => { state.arrows.splice(idx, 1); drawArrows(); });
-    layer.appendChild(line);
-
-    const labelBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    const dx = x2 - x1, dy = y2 - y1;
-    const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const nx = -dy / len, ny = dx / len;
-    const labelX = midx + nx * 14;
-    const labelY = midy + ny * 14 - 4;
-    text.setAttribute("x", labelX); text.setAttribute("y", labelY);
-    text.setAttribute("text-anchor", "middle");
-    text.setAttribute("font-size", "11");
-    text.setAttribute("fill", "#201f1c");
-    text.textContent = a.label;
-    layer.appendChild(text);
-    const bbox = text.getBBox ? tryBBox(text) : null;
-    if (bbox) {
-      labelBg.setAttribute("x", bbox.x - 4);
-      labelBg.setAttribute("y", bbox.y - 2);
-      labelBg.setAttribute("width", bbox.width + 8);
-      labelBg.setAttribute("height", bbox.height + 4);
-            labelBg.setAttribute("rx", "3");
-      labelBg.setAttribute("fill", "#fffefb");
-      labelBg.setAttribute("stroke", "#ddd8c8");
-      labelBg.setAttribute("stroke-width", "0.5");
-      layer.insertBefore(labelBg, text);
-    }
-  });
-  buildAnalyzeSelects();
-}
-
-function tryBBox(node) {
-  try { return node.getBBox(); } catch (e) { return null; }
-}
-
-function zoneRank(z) { return { high: 0, moderate: 1, limited: 2 }[z]; }
-
-function cssEscape(s) { return s.replace(/["\\]/g, "\\$&"); }
-
-function buildLabelOptions() {}
 
 function buildAnalyzeSelects() {
   const placed = group.actors.filter(a => state.zones[a]);
@@ -310,11 +200,199 @@ function buildAnalyzeSelects() {
 }
 
 function resetAll() {
-  state = { zones: {}, arrows: [], imbalanceFrom: "", imbalanceTo: "", imbalanceWhy: "", redesignGains: "", redesignGives: "", redesignChanges: "" };
-  ["imbalanceWhy", "redesignGains", "redesignGives", "redesignChanges"].forEach(id => (document.getElementById(id).value = ""));
+  state = { zones: {}, arrows: [], imbalanceFrom: "", imbalanceTo: "", imbalanceWhy: "" };
+  document.getElementById("imbalanceWhy").value = "";
+  document.getElementById("graphSection").style.display = "none";
   renderPool();
   renderZones();
-  drawArrows();
+  buildAnalyzeSelects();
+}
+
+function onGenerateClick() {
+  const placedCount = Object.keys(state.zones).length;
+  const errEl = document.getElementById("genError");
+  if (placedCount < 2) {
+    errEl.textContent = "Place at least 2 actors into zones first.";
+    return;
+  }
+  errEl.textContent = "";
+  generateGraph();
+  document.querySelector(".wrap .block").style.display = "none";
+  document.getElementById("graphSection").style.display = "block";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function currentEdges() {
+  return state.arrows.filter(c => state.zones[c.from] && state.zones[c.to]);
+}
+
+function generateGraph() {
+  const names = Object.keys(state.zones);
+  gNames = names;
+
+  const edges = currentEdges();
+  const degree = {};
+  names.forEach(n => degree[n] = 0);
+  edges.forEach(c => { degree[c.from]++; degree[c.to]++; });
+  let hub = names[0];
+  names.forEach(n => { if (degree[n] > degree[hub]) hub = n; });
+
+  const cx = 340, cy = 260;
+  const others = names.filter(n => n !== hub).sort((a, b) => ZONE_RANK[state.zones[a]] - ZONE_RANK[state.zones[b]]);
+  const R = 190;
+  const pos = {};
+  pos[hub] = { x: cx, y: cy };
+  others.forEach((n, i) => {
+    const angle = (i / Math.max(others.length, 1)) * Math.PI * 2 - Math.PI / 2;
+    pos[n] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle) };
+  });
+  gPos = pos;
+  renderGraph();
+}
+
+function nodeRadius(n, edges) {
+  const deg = edges.filter(e => e.from === n || e.to === n).length;
+  return 10 + deg * 3;
+}
+
+function edgeColor(c) {
+  const r1 = ZONE_RANK[state.zones[c.from]], r2 = ZONE_RANK[state.zones[c.to]];
+  if (r1 < r2) return "#2c2a4a";
+  if (r1 > r2) return "#a8672f";
+  return "#8a877d";
+}
+
+function shortLabel(n) { return n.length > 20 ? n.slice(0, 18) + "…" : n; }
+
+function renderGraph() {
+  const gsvg = document.getElementById("graphSvg");
+  if (!gsvg || gNames.length === 0) return;
+  const edges = currentEdges();
+  let markers = '<defs><marker id="ah2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#55534c"/></marker></defs>';
+
+  let edgesSvg = "";
+  edges.forEach((c, idx) => {
+    const p1 = gPos[c.from], p2 = gPos[c.to];
+    if (!p1 || !p2) return;
+    const color = edgeColor(c);
+    const mx = (p1.x + p2.x) / 2 + (p2.y - p1.y) * 0.08;
+    const my = (p1.y + p2.y) / 2 - (p2.x - p1.x) * 0.08;
+    edgesSvg += '<path data-idx="' + idx + '" class="edgeLine" d="M ' + p1.x + ' ' + p1.y + ' Q ' + mx + ' ' + my + ' ' + p2.x + ' ' + p2.y + '" fill="none" stroke="' + color + '" stroke-width="1.6" opacity="0.9" marker-end="url(#ah2)" style="cursor:pointer;"/>';
+    const lx = mx, ly = my - 6;
+    edgesSvg += '<rect x="' + (lx - (c.label.length * 3.2)) + '" y="' + (ly - 10) + '" width="' + (c.label.length * 6.4) + '" height="16" rx="3" fill="#fffefb" stroke="#ddd8c8" stroke-width="0.5"/>';
+    edgesSvg += '<text x="' + lx + '" y="' + ly + '" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#201f1c">' + c.label + '</text>';
+  });
+
+  let nodesSvg = "";
+  gNames.forEach(n => {
+    const p = gPos[n];
+    const r = nodeRadius(n, edges);
+    const zone = state.zones[n];
+    const labelY = p.y - r - 8;
+    nodesSvg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + r + '" fill="' + ZONE_FILL[zone] + '" stroke="' + ZONE_STROKE[zone] + '" stroke-width="1.4"/>';
+    nodesSvg += '<text x="' + p.x + '" y="' + labelY + '" text-anchor="middle" font-size="12" fill="#201f1c">' + shortLabel(n) + '</text>';
+  });
+
+  gsvg.innerHTML = markers + edgesSvg + nodesSvg;
+
+  gsvg.querySelectorAll(".edgeLine").forEach(path => {
+    path.addEventListener("click", () => {
+      const idx = parseInt(path.getAttribute("data-idx"), 10);
+      const edgeList = currentEdges();
+      const target = edgeList[idx];
+      const realIdx = state.arrows.indexOf(target);
+      if (realIdx > -1) state.arrows.splice(realIdx, 1);
+      renderGraph();
+      buildAnalyzeSelects();
+    });
+  });
+}
+
+function toSvgPoint(svg, evt) {
+  const pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  const ctm = svg.getScreenCTM();
+  return pt.matrixTransform(ctm.inverse());
+}
+
+function hitTestNode(pt) {
+  let found = null;
+  const edges = currentEdges();
+  gNames.forEach(n => {
+    const p = gPos[n];
+    const dx = pt.x - p.x, dy = pt.y - p.y;
+    if (Math.sqrt(dx * dx + dy * dy) <= nodeRadius(n, edges) + 10) found = n;
+  });
+  return found;
+}
+
+function pointsToPath(pts) {
+  return "M " + pts[0].x + " " + pts[0].y + " " + pts.slice(1).map(p => "L " + p.x + " " + p.y).join(" ");
+}
+
+function attachDrawing() {
+  const gsvg = document.getElementById("graphSvg");
+  let dragging = false, dragStart = null, dragPoints = [], tempPath = null;
+
+  gsvg.addEventListener("pointerdown", e => {
+    const pt = toSvgPoint(gsvg, e);
+    const hit = hitTestNode(pt);
+    if (!hit) return;
+    dragging = true;
+    dragStart = hit;
+    dragPoints = [pt];
+    tempPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    tempPath.setAttribute("fill", "none");
+    tempPath.setAttribute("stroke", "#b5432f");
+    tempPath.setAttribute("stroke-width", "2");
+    tempPath.setAttribute("stroke-dasharray", "4 4");
+    gsvg.appendChild(tempPath);
+    gsvg.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  gsvg.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    const pt = toSvgPoint(gsvg, e);
+    dragPoints.push(pt);
+    tempPath.setAttribute("d", pointsToPath(dragPoints));
+  });
+
+  gsvg.addEventListener("pointerup", e => {
+    if (!dragging) return;
+    dragging = false;
+    const pt = toSvgPoint(gsvg, e);
+    const hit = hitTestNode(pt);
+    if (tempPath) tempPath.remove();
+    if (hit && hit !== dragStart) {
+      openLabelPanel(dragStart, hit, e.clientX, e.clientY);
+    }
+    dragStart = null; dragPoints = [];
+  });
+}
+
+function openLabelPanel(from, to, clientX, clientY) {
+  document.querySelectorAll(".label-panel").forEach(p => p.remove());
+  const panel = el("div", { class: "label-panel" });
+  panel.style.left = Math.min(window.scrollX + clientX, window.scrollX + document.body.clientWidth - 240) + "px";
+  panel.style.top = (window.scrollY + clientY + 12) + "px";
+  panel.appendChild(el("div", { text: from + " → " + to, style: "font-size:13px;margin-bottom:6px;" }));
+  const select = el("select");
+  group.labels.forEach(l => select.appendChild(el("option", { value: l, text: l })));
+  panel.appendChild(select);
+  const confirmBtn = el("button", { class: "primary", text: "Add arrow" });
+  const cancelBtn = el("button", { text: "Cancel" });
+  const row = el("div", { style: "display:flex;gap:8px;" }, [confirmBtn, cancelBtn]);
+  panel.appendChild(row);
+  document.body.appendChild(panel);
+
+  confirmBtn.addEventListener("click", () => {
+    state.arrows.push({ from, to, label: select.value });
+    panel.remove();
+    renderGraph();
+    buildAnalyzeSelects();
+  });
+  cancelBtn.addEventListener("click", () => panel.remove());
 }
 
 function generateShareLink() {
