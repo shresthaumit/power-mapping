@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Power Mapping Activity</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <a class="back-link" href="index.html">← Back to all groups</a>
+
+  <div id="sharedBanner" class="banner" style="display:none;">You're viewing a finished power map shared by a group. Feel free to explore it — nothing here affects their saved version.</div>
+
+  <div class="eyebrow" id="groupSubtitle"></div>
+  <h1 id="groupTitle"></h1>
+
+  <details class="scenario" open>
+    <summary>Read the scenario</summary>
+    <p id="scenarioText"></p>
+    <div class="actor-list" id="actorList"></div>
+  </details>
+
+  <section class="block">
+    <h2>Step 1–3 · Position, connect, and label</h2>
+    <p class="hint">Drag each actor into a power zone. Click two placed actors in a row to draw an arrow, then choose a label for that relationship. Click an arrow to remove it.</p>
+
+    <div id="pool" class="pool"></div>
+
+    <div id="board">
+      <svg id="arrowLayer"></svg>
+      <div id="zones" class="zones"></div>
+    </div>
+
+    <div class="controls">
+      <button id="resetBtn">Reset board</button>
+      <button id="undoArrowBtn">Remove last arrow</button>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Step 4 · Analyze</h2>
+    <p class="hint">Which relationship creates the greatest power imbalance?</p>
+    <div class="two-col">
+      <div>
+        <label>From actor</label>
+        <select id="imbalanceFrom"></select>
+      </div>
+      <div>
+        <label>To actor</label>
+        <select id="imbalanceTo"></select>
+      </div>
+    </div>
+    <label>Why does this relationship create the greatest imbalance?</label>
+    <textarea id="imbalanceWhy" placeholder="Explain your reasoning using evidence from the scenario…"></textarea>
+  </section>
+
+  <section class="block">
+    <h2>Step 5 · Redesign</h2>
+    <p class="hint">Change one relationship on your map above (delete an arrow and draw a new one, or move an actor to a different zone) to create a more equitable distribution of power. Then answer:</p>
+    <label>Who gains power?</label>
+    <textarea id="redesignGains"></textarea>
+    <label>Who gives up or shares power?</label>
+    <textarea id="redesignGives"></textarea>
+    <label>What specifically changes?</label>
+    <textarea id="redesignChanges"></textarea>
+  </section>
+
+  <section class="block">
+    <h2>Share your finished map</h2>
+    <p class="hint">When your group is done, generate a link and send it to your instructor to project on screen.</p>
+    <button id="shareBtn" class="primary">Generate share link</button>
+    <div id="shareBox" class="share-box">
+      <textarea id="shareLink" readonly></textarea>
+      <div class="share-actions">
+        <button id="copyLinkBtn">Copy link</button>
+        <a id="emailLinkBtn" href="#"><button type="button">Email this link</button></a>
+      </div>
+    </div>
+  </section>
+</div>
+<footer class="site">Power mapping activity · Decolonizing Global Health</footer>
+<script src="assets/app.js"></script>
+<script>
+  if (new URLSearchParams(location.search).get("data")) {
+    document.getElementById("sharedBanner").style.display = "block";
+  }
+</script>
+</body>
+</html>
