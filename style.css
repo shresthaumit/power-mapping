@@ -155,7 +155,7 @@ details.scenario p { margin-top: 12px; }
 .chip.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 #board { position: relative; margin-bottom: 8px; }
-#arrowLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+#arrowLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible;z-index: 5; }
 
 .zones {
   display: grid;
