@@ -261,7 +261,12 @@ function clipToEdge(cx, cy, w, h, tx, ty) {
 
     const labelBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    text.setAttribute("x", midx); text.setAttribute("y", midy);
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    const labelX = midx + nx * 14;
+    const labelY = midy + ny * 14 - 4;
+    text.setAttribute("x", labelX); text.setAttribute("y", labelY);
     text.setAttribute("text-anchor", "middle");
     text.setAttribute("font-size", "11");
     text.setAttribute("fill", "#201f1c");
@@ -273,7 +278,10 @@ function clipToEdge(cx, cy, w, h, tx, ty) {
       labelBg.setAttribute("y", bbox.y - 2);
       labelBg.setAttribute("width", bbox.width + 8);
       labelBg.setAttribute("height", bbox.height + 4);
-      labelBg.setAttribute("fill", "#f6f3ec");
+            labelBg.setAttribute("rx", "3");
+      labelBg.setAttribute("fill", "#fffefb");
+      labelBg.setAttribute("stroke", "#ddd8c8");
+      labelBg.setAttribute("stroke-width", "0.5");
       layer.insertBefore(labelBg, text);
     }
   });
