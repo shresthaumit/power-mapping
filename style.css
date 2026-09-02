@@ -180,7 +180,7 @@ details.scenario p { margin-top: 12px; }
 .zone.high h3 { color: var(--high); }
 .zone.moderate h3 { color: var(--moderate); }
 .zone.limited h3 { color: var(--limited); }
-.drop { min-height: 100px; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
+.drop { min-height: 100px; display: flex; flex-wrap: wrap; gap: 20px 8px; align-content: flex-start; }
 .drop .chip { cursor: pointer; }
 .drop.dragover { outline: 2px dashed var(--accent); outline-offset: 2px; }
 
