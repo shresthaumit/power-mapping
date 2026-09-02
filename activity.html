@@ -15,6 +15,14 @@
   <div class="eyebrow" id="groupSubtitle"></div>
   <h1 id="groupTitle"></h1>
 
+  <div class="breadcrumb">
+    <span id="bcPosition">Position</span><span class="arrow">→</span>
+    <span id="bcConnect">Connect</span><span class="arrow">→</span>
+    <span id="bcLabel">Label</span><span class="arrow">→</span>
+    <span id="bcAnalyze">Analyze</span><span class="arrow">→</span>
+    <span id="bcRedesign">Redesign</span>
+  </div>
+
   <details class="scenario" open>
     <summary>Read the scenario</summary>
     <p id="scenarioText"></p>
@@ -22,52 +30,41 @@
   </details>
 
   <section class="block">
-    <h2>Step 1 · Position</h2>
-    <p class="hint">Drag each actor into a power zone based on the scenario. You can drag a chip back to the tray above to move it.</p>
+    <h2>Step 1–3 · Position, connect, and label</h2>
+    <p class="hint">Drag each actor into a power zone based on evidence from the scenario. Drag a card back to the tray to move it. Then click two placed actors in a row to draw an arrow between them, and choose which kind of power that relationship represents.</p>
+    <p class="hint"><strong>Arrows show the direction of power or influence.</strong> You do not need to connect every actor. Only create relationships you can justify from the scenario — and think carefully about which label fits best, since more than one type of power may exist between the same two actors. Click an arrow to remove it.</p>
 
     <div id="pool" class="pool"></div>
 
     <div id="board">
+      <svg id="arrowLayer"></svg>
       <div id="zones" class="zones"></div>
     </div>
 
     <div class="controls">
       <button id="resetBtn">Reset board</button>
-      <button id="generateBtn" class="primary">Generate power map</button>
-    </div>
-    <div id="genError" class="error"></div>
-  </section>
-
-  <section class="block" id="graphSection" style="display:none;">
-    <h2>Step 2–3 · Connect and label</h2>
-    <p class="hint">Drag from one actor to another to draw an arrow, then choose a label for that relationship. Notice that the label options are different kinds of power (for example, Funding, Decision-Making, Implementation) — think carefully about which one best describes how power actually moves between these two specific actors, since more than one arrow may apply. Click an arrow to remove it.</p>
-    <svg id="graphSvg" width="100%" viewBox="0 0 680 520" style="touch-action:none;background:var(--card);border:1px solid var(--line);border-radius:12px;"></svg>
-    <div style="display:flex;gap:16px;margin-top:10px;font-size:12px;color:var(--ink-faint);flex-wrap:wrap;">
-      <span><span style="display:inline-block;width:14px;height:2px;background:#2c2a4a;vertical-align:middle;margin-right:4px;"></span>Flows from higher to lower power</span>
-      <span><span style="display:inline-block;width:14px;height:2px;background:#a8672f;vertical-align:middle;margin-right:4px;"></span>Flows from lower to higher power</span>
-      <span><span style="display:inline-block;width:14px;height:2px;background:#8a877d;vertical-align:middle;margin-right:4px;"></span>Same power level</span>
-    </div>
-    <div class="controls">
       <button id="undoArrowBtn">Remove last arrow</button>
-      <button id="adjustBtn">Adjust arrangement</button>
     </div>
   </section>
 
   <section class="block">
     <h2>Step 4 · Analyze</h2>
-    <p class="hint">Which relationship creates the greatest power imbalance?</p>
-    <div class="two-col">
-      <div>
-        <label>From actor</label>
-        <select id="imbalanceFrom"></select>
-      </div>
-      <div>
-        <label>To actor</label>
-        <select id="imbalanceTo"></select>
-      </div>
-    </div>
-    <label>Why does this relationship create the greatest imbalance?</label>
+    <p class="hint">Select the one relationship your group believes creates the greatest power imbalance. Selecting it will highlight that arrow on your map above.</p>
+    <label>Relationship</label>
+    <select id="relationshipSelect"></select>
+    <label>Why did your group identify this as the most important power imbalance?</label>
     <textarea id="imbalanceWhy" placeholder="Explain your reasoning using evidence from the scenario…"></textarea>
+  </section>
+
+  <section class="block">
+    <h2>Step 5 · Redesign</h2>
+    <p class="hint">Change one relationship on your map above (remove an arrow and draw a new one, change its label, or move an actor to a different power zone) to create a more equitable distribution of power. Then answer:</p>
+    <label>Who gains power?</label>
+    <textarea id="redesignGains"></textarea>
+    <label>Who gives up or shares power?</label>
+    <textarea id="redesignGives"></textarea>
+    <label>What specifically changes?</label>
+    <textarea id="redesignChanges"></textarea>
   </section>
 
   <section class="block">
