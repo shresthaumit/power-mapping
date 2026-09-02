@@ -134,7 +134,7 @@ function init() {
 
   const placedCount = Object.keys(state.zones).length;
   if (placedCount >= 2) {
-    document.querySelector(".wrap .block").style.display = "block";
+    document.querySelector(".wrap .block").style.display = "none";
     generateGraph();
     document.getElementById("graphSection").style.display = "block";
   }
