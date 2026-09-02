@@ -398,7 +398,7 @@ function openLabelPanel(from, to, clientX, clientY) {
 function generateShareLink() {
   const payload = { g: groupId, ...state };
   const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-  const url = location.origin + location.pathname + "?g=" + groupId + "&data=" + encoded;
+  const url = location.origin + location.pathname + "?g=" + groupId + "&data=" + encodeURIComponent(encoded);
   const box = document.getElementById("shareBox");
   const textarea = document.getElementById("shareLink");
   textarea.value = url;
